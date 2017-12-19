@@ -6,10 +6,12 @@ import java.util.*;
 
 public class AVLTree<T extends Comparable<T>> implements SortedSet<T> {
     public Comparator<? super T> comparator;
+
     private Node root;
     private int size = 0;
+
     private class Node {
-        public T key;
+        private T key;
         int height;
         Node left;
         Node right;
@@ -28,12 +30,12 @@ public class AVLTree<T extends Comparable<T>> implements SortedSet<T> {
             this.height = ((leftHeight > rightHeight) ? leftHeight : rightHeight) + 1;
         }
         private int balanceFactor() {
-            //Считаем рразницу высот относительно правого поддрева
+            //Считаем разницу высот относительно правого поддрева
             int leftHeight = (left != null) ? left.getHeight() : 0;
             int rightHeight = (right != null) ? right.getHeight() : 0;
             return rightHeight - leftHeight;
         }
-        //Каждый метод поворота должен ваозвращать Node, так как они меняют корень дерева
+        //Каждый метод поворота должен возвращать Node, так как они меняют корень дерева
         private Node turnLeft() {
             //Сохраняем ссылку, чтобы не потерять ее
             Node p = this.right;
@@ -53,7 +55,7 @@ public class AVLTree<T extends Comparable<T>> implements SortedSet<T> {
         }
         private Node balanceTree() {
             this.countHeight();
-            //Нам нужно проветить, нет ли дибаланса в текущей вершине
+            //Нам нужно проветить, нет ли дисбаланса в текущей вершине
             if (this.balanceFactor() == 2) {
                 //Если дисбаланс справа
                 if (this.right != null && this.right.balanceFactor() < 0) {
@@ -71,14 +73,14 @@ public class AVLTree<T extends Comparable<T>> implements SortedSet<T> {
         }
         private Node insertKey(T key) {
             int comparison = key.compareTo(this.key);
-            if (comparison == -1) {
+            if (comparison < 0) {
                 if (this.left != null)
                     this.left = this.left.insertKey(key);
                 else {
                     this.left = new Node(key);
                     size++;
                 }
-            } else if (comparison == 1) {
+            } else if (comparison > 0) {
                 if (this.right != null)
                     this.right = this.right.insertKey(key);
                 else {
@@ -90,7 +92,28 @@ public class AVLTree<T extends Comparable<T>> implements SortedSet<T> {
         }
         //Находит минимальный элемент в дереве this
         private Node min() {
-            if (this.left == null) return this; else return this.left.min();
+            if (this.left == null) return this;
+            else return this.left.min();
+        }
+        private Node max() {
+            if (this.right == null) return this;
+            else return this.right.max();
+        }
+
+        private Node next(T key, Node prev) {
+            int comparison  = key.compareTo(this.key);
+            Node min = (comparison < 0 && this.key.compareTo(prev.key) < 0) ? this : prev;
+            if (comparison < 0 && this.left != null) {
+                min = this.left.next(key, min);
+            } else if (comparison > 0 && this.right != null) {
+                min = this.right.next(key, min);
+            } else if (comparison == 0) {
+                if (this.right != null) {
+                    Node minRight = this.right.min();
+                    min = (minRight.key.compareTo(min.key) < 0) ? minRight : prev;
+                }
+            }
+            return min;
         }
         //Находит и удаляет минимальный элемент в дереве this, с учетом свойств АВЛ дерева
         //Так как метод изменяет структуру дерева - снова проводим балансировку и возвращаем новую вершину
@@ -100,13 +123,14 @@ public class AVLTree<T extends Comparable<T>> implements SortedSet<T> {
             this.left = left.removeMin();
             return this.balanceTree();
         }
-        public Node remove(T key) {
+        private Node remove(T key) {
             int comparison = key.compareTo(this.key);
-            if (comparison == -1 && this.left != null){
+            if (comparison < 0 && this.left != null){
                 this.left = this.left.remove(key);
-            } else if (comparison == 1 && this.right != null) {
+            } else if (comparison > 0 && this.right != null) {
                 this.right = this.right.remove(key);
             } else if (comparison == 0) {
+                size--;
                 Node left = this.left;
                 Node right = this.right;
                 if (right == null) return left;
@@ -114,21 +138,44 @@ public class AVLTree<T extends Comparable<T>> implements SortedSet<T> {
                 Node min = right.min();
                 min.right = right.removeMin();
                 min.left = left;
-                size--;
                 return min.balanceTree();
             }
-            return null;
+            return this;
         }
-        public boolean contains(T key) {
+        private boolean contains(T key) {
             int comparison = key.compareTo(this.key);
-            if (comparison == -1 && this.left != null) {
+            if (comparison < 0 && this.left != null) {
                 return this.left.contains(key);
-            } else if (comparison == 1 && this.right != null) {
+            } else if (comparison > 0 && this.right != null) {
                 return this.right.contains(key);
             } else return comparison == 0;
         }
     }
+    private class AvlIterator implements Iterator<T> {
+        Node first = null;
+        Node current = null;
+        Node last = null;
+        boolean lastReached = false;
 
+        public AvlIterator() {
+            first = root.min();
+            last = root.max();
+        }
+
+        @Override
+        public boolean hasNext() {
+            return (current != null) ? (!lastReached) : root != null;
+        }
+        @Override
+        public T next() {
+            Node next = (current == null) ? first : root.next(current.key, last);
+            if (lastReached) throw new NoSuchElementException();
+            lastReached = (next == last);
+            current = next;
+            return next.key;
+        }
+
+    }
 
     @Nullable
     @Override
@@ -161,99 +208,124 @@ public class AVLTree<T extends Comparable<T>> implements SortedSet<T> {
 
     @Override
     public T last() {
-        return null;
+        return root.max().key;
     }
 
     @Override
     public int size() {
-        System.out.println(root.getHeight());
         return size;
     }
 
     @Override
     public boolean isEmpty() {
-        return false;
+        return root == null;
     }
 
     @Override
     public boolean contains(Object o) {
-        try {
-            return (root != null && root.contains((T)o));
-        } catch (ClassCastException e) {
-            return false;
-        }
-
+        @SuppressWarnings("unchecked")
+        T t = (T) o;
+        return root != null && root.contains(t);
     }
 
     @NotNull
     @Override
     public Iterator<T> iterator() {
-        return null;
+        return new AvlIterator();
     }
 
     @NotNull
     @Override
     public Object[] toArray() {
-        return new Object[0];
+        Iterator<T> iterator = new AvlIterator();
+        Object[] o = new Object[size];
+        for (int i = 0; i < size; i++) {
+            o[i] = iterator.next();
+        }
+        return o;
     }
 
     @NotNull
     @Override
+    @SuppressWarnings("unchecked")
     public <T1> T1[] toArray(@NotNull T1[] a) {
-        return null;
+        if (a.length < size)
+            a = (T1[])java.lang.reflect.Array.newInstance(a.getClass(), size);
+        Iterator<T> iterator = new AvlIterator();
+        Object[] result = a;
+        for (int i = 0; i < size; i++) {
+            result[i] = iterator.next();
+        }
+        if (a.length > size)
+            for (int i = size; i < a.length; i++)
+                result[i] = null;
+        return a;
     }
 
     @Override
     public boolean add(T t) {
-        if (!this.contains(t)) {
-            if (root == null) {
+        if (root == null) {
                 root = new Node(t);
                 size++;
             }
             else root = root.insertKey(t);
             return true;
-        } else {
-            return false;
-        }
     }
 
     @Override
     public boolean remove(Object o) {
-        try {
+        @SuppressWarnings("unchecked")
             T t = (T) o;
-            if (this.contains(t)) {
                 root = root.remove(t);
                 return true;
-            } else {
-                return false;
-            }
-        } catch (ClassCastException e) {
-            return false;
-        }
     }
 
     @Override
     public boolean containsAll(@NotNull Collection<?> c) {
-        return false;
+        Object[] elements = c.toArray();
+        for (Object o : elements) {
+            @SuppressWarnings("unchecked")
+                    T t = (T) o;
+            if (!root.contains(t)) return false;
+        }
+        return true;
     }
 
     @Override
     public boolean addAll(@NotNull Collection<? extends T> c) {
-        return false;
+        c.forEach(E -> root.insertKey(E));
+        return true;
     }
 
     @Override
     public boolean retainAll(@NotNull Collection<?> c) {
-        return false;
+        Node newRoot = null;
+        Object[] elements = c.toArray();
+        for (Object o : elements) {
+            @SuppressWarnings("unchecked")
+                    T t = (T) o;
+            if (root.contains(t)) {
+                if (newRoot == null) newRoot = new Node(t);
+                else newRoot.insertKey(t);
+            }
+        }
+        root = newRoot;
+        return true;
     }
 
     @Override
     public boolean removeAll(@NotNull Collection<?> c) {
-        return false;
+        c.forEach(E -> {
+            @SuppressWarnings("unchecked")
+            T t = (T) E;
+            root.remove(t);
+        });
+        return true;
     }
 
     @Override
     public void clear() {
         root = null;
+        size = 0;
     }
 }
