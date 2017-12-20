@@ -5,7 +5,7 @@ import java.util.*;
 
 
 public class AVLTree<T extends Comparable<T>> implements SortedSet<T> {
-    public Comparator<? super T> comparator;
+    private Comparator<? super T> comparator;
 
     private Node root;
     private int size = 0;
@@ -72,7 +72,7 @@ public class AVLTree<T extends Comparable<T>> implements SortedSet<T> {
             return this;
         }
         private Node insertKey(T key) {
-            int comparison = key.compareTo(this.key);
+            int comparison = compare(key, this.key);
             if (comparison < 0) {
                 if (this.left != null)
                     this.left = this.left.insertKey(key);
@@ -157,7 +157,7 @@ public class AVLTree<T extends Comparable<T>> implements SortedSet<T> {
         Node last = null;
         boolean lastReached = false;
 
-        public AvlIterator() {
+        private AvlIterator() {
             first = root.min();
             last = root.max();
         }
@@ -176,6 +176,14 @@ public class AVLTree<T extends Comparable<T>> implements SortedSet<T> {
         }
 
     }
+    private int compare(T o1, T o2) {
+        return (comparator != null) ? comparator.compare(o1, o2) : o1.compareTo(o2);
+    }
+
+    public AVLTree(Comparator<? super T> comparator) {
+        this.comparator = comparator;
+    }
+    public AVLTree(){}
 
     @Nullable
     @Override
@@ -186,19 +194,28 @@ public class AVLTree<T extends Comparable<T>> implements SortedSet<T> {
     @NotNull
     @Override
     public SortedSet<T> subSet(T fromElement, T toElement) {
-        return null;
+        if (!root.contains(fromElement) || !root.contains(toElement))
+            throw new NoSuchElementException();
+        AVLTree<T> subSet = new AVLTree<>();
+        Iterator<T> iterator = new AvlIterator();
+        while (iterator.hasNext()) {
+            T curr = iterator.next();
+            if (compare(curr, fromElement) >= 0 && compare(curr, toElement) <= 0)
+                subSet.add(curr);
+        }
+        return subSet;
     }
 
     @NotNull
     @Override
     public SortedSet<T> headSet(T toElement) {
-        return null;
+        return subSet(first(), toElement);
     }
 
     @NotNull
     @Override
     public SortedSet<T> tailSet(T fromElement) {
-        return null;
+        return subSet(fromElement, last());
     }
 
     @Override
